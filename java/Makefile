@@ -7,8 +7,10 @@ build-tool:
 	javac com/craftinginterpreters/tool/GenerateAst.java
 run: build
 	java com.craftinginterpreters.lox.Lox
+	java com.craftinginterpreters.lox.AstPrinter
 build: format
 	javac com/craftinginterpreters/lox/Lox.java
+	javac com/craftinginterpreters/lox/AstPrinter.java
 format:
 	google-java-format -i $(SOURCES)
 
