@@ -128,13 +128,13 @@ class Scanner {
   }
 
   private void identifier() {
-    while (isAlphaNumeric(peek())) advance();
+    while (isAlphaNumeric(peek())) advance(); // アルファベッド、数値が続く限り進める。var a = 24などはvからはじめvarまで
 
-    String text = source.substring(start, current);
+    String text = source.substring(start, current); // 初期位置から抜き出す(var)
     TokenType type = keywords.get(text);
     if (type == null) type = IDENTIFIER;
 
-    addToken(IDENTIFIER);
+    addToken(type);
   }
 
   private void number() {

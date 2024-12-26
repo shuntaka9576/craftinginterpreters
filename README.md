@@ -12,4 +12,8 @@ brew install google-java-format
 
 javaディレクトリ配下で、Neovimを起動する
 
+### やり残し
+
+P132にチャレンジ課題が、インタプリタの拡張内容なのでやるべき
+
 ## Rust

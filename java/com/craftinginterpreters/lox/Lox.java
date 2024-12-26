@@ -9,7 +9,9 @@ import java.nio.file.Paths;
 import java.util.List;
 
 public class Lox {
+  private static final Interpreter interpreter = new Interpreter();
   static boolean hadError = false;
+  static boolean hadRuntimeError = false;
 
   public static void main(String[] args) throws IOException {
     if (args.length > 1) {
@@ -27,6 +29,7 @@ public class Lox {
     run(new String(bytes, Charset.defaultCharset()));
 
     if (hadError) System.exit(65);
+    if (hadRuntimeError) System.exit(70);
   }
 
   private static void runPrompt() throws IOException {
@@ -45,16 +48,30 @@ public class Lox {
   private static void run(String source) {
     Scanner scanner = new Scanner(source);
     List<Token> tokens = scanner.scanTokens();
+    /* NOTE: tokenizeのデバッグ用
+    for (Token token : tokens) {
+      System.out.println("token:" + token);
+    }
+    */
+
     Parser parser = new Parser(tokens);
-    Expr expression = parser.parse();
+    // Expr expression = parser.parse(); // NOTE: 8.1.3
+    List<Stmt> statements = parser.parse();
 
     if (hadError) return;
 
-    System.out.println(new AstPrinter().print(expression));
+    // System.out.println(new AstPrinter().print(expression)); // NOTE: 8.1.3
+    // interpreter.interpret(expression);// NOTE: 8.1.3
+    interpreter.interpret(statements);
   }
 
   static void error(int line, String message) {
     report(line, "", message);
+  }
+
+  static void runtimeError(RuntimeError error) {
+    System.err.println(error.getMessage() + "\n[line" + error.token.line + "]");
+    hadRuntimeError = true;
   }
 
   private static void report(int line, String where, String message) {
