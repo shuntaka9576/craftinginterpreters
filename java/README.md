@@ -6,4 +6,5 @@
 
 ```bash
 make build;java com.craftinginterpreters.lox.Lox examples/01_8-1.lox
+make build;java com.craftinginterpreters.lox.Lox examples/02_8-5.lox
 ```

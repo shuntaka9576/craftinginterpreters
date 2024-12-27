@@ -3,6 +3,7 @@ package com.craftinginterpreters.lox;
 import static com.craftinginterpreters.lox.TokenType.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 class Parser {
@@ -29,18 +30,65 @@ class Parser {
     List<Stmt> statements = new ArrayList<>();
     while (!isAtEnd()) {
       statements.add(declaration());
-      statements.add(statement());
+      // NOTE: 8.2.2. で上記行のものに置換
+      // statements.add(statement());
     }
 
     return statements;
   }
 
   private Expr expression() {
-    return equality();
+    return assignment();
+  }
+
+  private Expr assignment() {
+    // NOTE: 9.3. で置換
+    // Expr expr = equality();
+    Expr expr = or();
+
+    if (match(EQUAL)) {
+      Token equals = previous(); // EQUALであることは明示的だが、matchで消費して次に進んでいるため位置情報取得ため取り出している
+      Expr value = assignment(); // a = b = cのようなケースを想定
+
+      if (expr instanceof Expr.Variable) {
+        Token name = ((Expr.Variable) expr).name;
+
+        return new Expr.Assign(name, value);
+      }
+
+      error(equals, "Invalid assignment target.");
+    }
+
+    return expr;
+  }
+
+  private Expr or() {
+    Expr expr = and();
+
+    while (match(OR)) {
+      Token operator = previous();
+      Expr right = and();
+      expr = new Expr.Logical(expr, operator, right);
+    }
+
+    return expr;
+  }
+
+  private Expr and() {
+    Expr expr = equality();
+
+    while (match(AND)) {
+      Token operator = previous();
+      Expr right = equality();
+      expr = new Expr.Logical(expr, operator, right);
+    }
+
+    return expr;
   }
 
   private Stmt declaration() {
     try {
+      if (match(FUN)) return function("function");
       if (match(VAR)) return varDeclaration(); // VARが見つかり、match内でcurrent++
       return statement();
     } catch (ParseError error) {
@@ -50,9 +98,91 @@ class Parser {
   }
 
   private Stmt statement() {
+    if (match(IF)) return ifStatement();
+    if (match(FOR)) return forStatment();
     if (match(PRINT)) return printStatement();
+    if (match(WHILE)) return whileStatement();
+    if (match(LEFT_BRACE)) return new Stmt.Block(block());
 
     return expressionStatement();
+  }
+
+  // NOTE:
+  // --- EBNF ---
+  // "if" "(" expression ")" statment
+  // ("else" statement )? ;
+  // 「ぶら下がり else」問題が起きないよう、パーサの段階でそもそも曖昧さが生じないルールになってる
+  private Stmt ifStatement() {
+    consume(LEFT_PAREN, "Expect '(' after 'if'."); // if の次は(のため
+    Expr condition = expression();
+    consume(RIGHT_PAREN, "Expect ')' after if condition.");
+
+    Stmt thenBranch = statement();
+    Stmt elseBranch = null;
+    if (match(ELSE)) {
+      elseBranch = statement();
+    }
+
+    return new Stmt.If(condition, thenBranch, elseBranch);
+  }
+
+  // NOTE: forは糖衣構文のため、既存のASTを応用して実現する
+  private Stmt forStatment() {
+    consume(LEFT_PAREN, "Expect '(' after 'for'."); // if の次は(のため
+
+    Stmt initializer;
+    if (match(SEMICOLON)) {
+      initializer = null;
+    } else if (match(VAR)) {
+      initializer = varDeclaration();
+    } else {
+      initializer = expressionStatement(); // (1) stament
+    }
+
+    Expr condition = null;
+    if (!check(SEMICOLON)) {
+      condition = expression();
+    }
+    consume(SEMICOLON, "Expr ';' after loop condition.");
+
+    Expr increment = null;
+    if (!check(RIGHT_PAREN)) {
+      increment = expression();
+    }
+    consume(RIGHT_PAREN, "Expect ')' after for clauses.");
+
+    // NOTE: 以降の処理は、bodyを再代入を繰り返すため注意
+    Stmt body = statement(); // (2) 1と同じstatementだが、式がネストする(if () {for ()})の可能性を考慮する必要がある。
+
+    if (increment != null) {
+      // NOTE: forブロックの中で、bodyとincrementの両方を実行したと解釈する
+      // var i = 0
+      // while (i < 10) {
+      //   print i;
+      //   i = i + 1; // <-- この部分
+      // }
+      body = new Stmt.Block(Arrays.asList(body, new Stmt.Expression(increment)));
+    }
+
+    if (condition == null) {
+      condition = new Expr.Literal(true);
+    }
+
+    body = new Stmt.While(condition, body); // <- (注意!) ここでwhileのASTとしてbodyが代入される
+
+    if (initializer != null) {
+      // NOTE: forブロックの中で1回だけ初期化を実行
+      // var i = 0 // <-- この部分
+      // while (i < 10) {
+      //   print i;
+      //   i = i + 1;
+      // }
+      body =
+          new Stmt.Block(
+              Arrays.asList(initializer, body)); // Blockの中でinitializerのあとにStmt.WhileのASTが追加される
+    }
+
+    return body;
   }
 
   private Stmt printStatement() {
@@ -74,10 +204,52 @@ class Parser {
     return new Stmt.Var(name, initializer);
   }
 
+  private Stmt whileStatement() {
+    consume(LEFT_PAREN, "Expect '(' after 'while'.");
+    Expr condition = expression();
+    consume(RIGHT_PAREN, "Expect ')' after condition.");
+    Stmt body = statement();
+
+    return new Stmt.While(condition, body);
+  }
+
   private Stmt expressionStatement() {
     Expr expr = expression();
     consume(SEMICOLON, "Expect ';' after expression.");
     return new Stmt.Expression(expr);
+  }
+
+  // MEMO: finishCallとの違い(?)
+  private Stmt function(String kind) {
+    Token name = consume(IDENTIFIER, "Expect" + kind + " name.");
+    consume(LEFT_PAREN, "Expect '(' after" + kind + " name.");
+    List<Token> parameters = new ArrayList<>();
+
+    if (!check(RIGHT_PAREN)) {
+      do {
+        if (parameters.size() >= 255) {
+          error(peek(), "Can't have more than 255 arguments.");
+        }
+
+        parameters.add(consume(IDENTIFIER, "Expect parameter name."));
+      } while (match(COMMA));
+    }
+
+    consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
+    List<Stmt> body = block();
+
+    return new Stmt.Function(name, parameters, body);
+  }
+
+  private List<Stmt> block() {
+    List<Stmt> statements = new ArrayList<>();
+
+    while (!check(RIGHT_BRACE) && !isAtEnd()) {
+      statements.add(declaration());
+    }
+
+    consume(RIGHT_BRACE, "Expedct '}' after block.");
+    return statements;
   }
 
   private Expr equality() {
@@ -132,7 +304,39 @@ class Parser {
       return new Expr.Unary(operator, right);
     }
 
-    return primary();
+    return call();
+    // NOTE: 10.1で置換
+    // return primary();
+  }
+
+  private Expr finishCall(Expr callee) {
+    List<Expr> arguments = new ArrayList<>();
+    if (!check(RIGHT_PAREN)) {
+      do {
+        if (arguments.size() >= 255) {
+          error(peek(), "Can't have more than 255 arguments.");
+        }
+
+        arguments.add(expression());
+      } while (match(COMMA));
+    }
+    Token paren = consume(RIGHT_PAREN, "Expect ')' after arguments.");
+
+    return new Expr.Call(callee, paren, arguments);
+  }
+
+  private Expr call() {
+    Expr expr = primary();
+
+    while (true) {
+      if (match(LEFT_PAREN)) {
+        expr = finishCall(expr);
+      } else {
+        break;
+      }
+    }
+
+    return expr;
   }
 
   private Expr primary() {

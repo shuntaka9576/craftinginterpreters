@@ -1,4 +1,4 @@
-# craftinginterpreters
+# Lox盆栽
 
 Lox作るぞ！
 

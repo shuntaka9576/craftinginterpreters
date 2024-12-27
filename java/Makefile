@@ -9,6 +9,15 @@ gen: build-tool
 build-tool:
 	javac com/craftinginterpreters/tool/GenerateAst.java
 
+test: build
+	for f in examples/*.lox; do \
+		echo "========================================"; \
+		echo "Running $$f"; \
+		echo "----------------------------------------"; \
+		java com.craftinginterpreters.lox.Lox "$$f"; \
+		echo ""; \
+	done
+
 run: build
 	java com.craftinginterpreters.lox.Lox
 	java com.craftinginterpreters.lox.AstPrinter

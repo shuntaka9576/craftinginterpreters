@@ -31,6 +31,16 @@ class AstPrinter implements Expr.Visitor<String> {
     return ""; // TODO: TokenをprettiyPrintする
   }
 
+  @Override
+  public String visitAssignExpr(Expr.Assign expr) {
+    return ""; // TODO: TokenをprettiyPrintする
+  }
+
+  @Override
+  public String visitLogicalExpr(Expr.Logical expr) {
+    return ""; // TODO: TokenをprettiyPrintする
+  }
+
   private String parenthesize(String name, Expr... exprs) {
     StringBuilder builder = new StringBuilder();
 
