@@ -60,6 +60,9 @@ public class Lox {
 
     if (hadError) return;
 
+    Resolver resolver = new Resolver(interpreter);
+    resolver.resolve(statements);
+
     // System.out.println(new AstPrinter().print(expression)); // NOTE: 8.1.3
     // interpreter.interpret(expression);// NOTE: 8.1.3
     interpreter.interpret(statements);

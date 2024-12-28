@@ -1,0 +1,11 @@
+{
+  var b = 32;
+  fun showB() {
+    print b;
+  }
+
+  {
+    var b = 24;
+    showB();
+  }
+}

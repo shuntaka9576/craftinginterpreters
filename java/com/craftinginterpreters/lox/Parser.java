@@ -101,6 +101,7 @@ class Parser {
     if (match(IF)) return ifStatement();
     if (match(FOR)) return forStatment();
     if (match(PRINT)) return printStatement();
+    if (match(RETURN)) return returnStatement();
     if (match(WHILE)) return whileStatement();
     if (match(LEFT_BRACE)) return new Stmt.Block(block());
 
@@ -191,6 +192,17 @@ class Parser {
     return new Stmt.Print(value);
   }
 
+  private Stmt returnStatement() {
+    Token keyword = previous();
+    Expr value = null;
+    if (!check(SEMICOLON)) {
+      value = expression();
+    }
+
+    consume(SEMICOLON, "Expect ';' after return value.");
+    return new Stmt.Return(keyword, value);
+  }
+
   private Stmt varDeclaration() {
     // declarationのmatchで今はvar a=24だとするとa部分を指す。ここを消費しつつ、current++
     Token name = consume(IDENTIFIER, "Expect variable name.");
@@ -220,6 +232,7 @@ class Parser {
   }
 
   // MEMO: finishCallとの違い(?)
+  // おそらく定義する話(function)と呼び出す話(finishCall)
   private Stmt function(String kind) {
     Token name = consume(IDENTIFIER, "Expect" + kind + " name.");
     consume(LEFT_PAREN, "Expect '(' after" + kind + " name.");
@@ -234,6 +247,7 @@ class Parser {
         parameters.add(consume(IDENTIFIER, "Expect parameter name."));
       } while (match(COMMA));
     }
+    consume(RIGHT_PAREN, "Expect ')' after parameters.");
 
     consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
     List<Stmt> body = block();
