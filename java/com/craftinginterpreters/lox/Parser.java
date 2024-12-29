@@ -54,6 +54,10 @@ class Parser {
         Token name = ((Expr.Variable) expr).name;
 
         return new Expr.Assign(name, value);
+      } else if (expr instanceof Expr.Get) {
+        Expr.Get get = (Expr.Get) expr;
+
+        return new Expr.Set(get.object, get.name, value);
       }
 
       error(equals, "Invalid assignment target.");
@@ -97,7 +101,32 @@ class Parser {
     }
   }
 
+  private Stmt classDeclaration() {
+    Token name = consume(IDENTIFIER, "Expect class name.");
+
+    Expr.Variable superclass = null;
+    if (match(LESS)) {
+      consume(IDENTIFIER, "Expect superclass name.");
+      superclass = new Expr.Variable(previous());
+    }
+
+    consume(LEFT_BRACE, "Expect '{' before class body.");
+
+    List<Stmt.Function> methods = new ArrayList<>();
+
+    while (!check(RIGHT_BRACE) && !isAtEnd()) {
+      methods.add(function("method"));
+    }
+
+    consume(RIGHT_BRACE, "Expect '}' after class body.");
+
+    // NOTE: 13.1.で置換
+    return new Stmt.Class(name, superclass, methods);
+    // return new Stmt.Class(name, methods);
+  }
+
   private Stmt statement() {
+    if (match(CLASS)) return classDeclaration();
     if (match(IF)) return ifStatement();
     if (match(FOR)) return forStatment();
     if (match(PRINT)) return printStatement();
@@ -233,7 +262,7 @@ class Parser {
 
   // MEMO: finishCallとの違い(?)
   // おそらく定義する話(function)と呼び出す話(finishCall)
-  private Stmt function(String kind) {
+  private Stmt.Function function(String kind) {
     Token name = consume(IDENTIFIER, "Expect" + kind + " name.");
     consume(LEFT_PAREN, "Expect '(' after" + kind + " name.");
     List<Token> parameters = new ArrayList<>();
@@ -345,6 +374,9 @@ class Parser {
     while (true) {
       if (match(LEFT_PAREN)) {
         expr = finishCall(expr);
+      } else if (match(DOT)) {
+        Token name = consume(IDENTIFIER, "Expect property name after '.'.");
+        expr = new Expr.Get(expr, name);
       } else {
         break;
       }
@@ -361,6 +393,16 @@ class Parser {
     if (match(NUMBER, STRING)) {
       return new Expr.Literal(previous().literal);
     }
+
+    if (match(SUPER)) {
+      Token keyword = previous();
+      consume(DOT, "Expect ',' after 'super'.");
+      Token method = consume(IDENTIFIER, "Expect superclass method name.");
+
+      return new Expr.Super(keyword, method);
+    }
+
+    if (match(THIS)) return new Expr.This(previous());
 
     if (match(IDENTIFIER)) {
       return new Expr.Variable(previous());

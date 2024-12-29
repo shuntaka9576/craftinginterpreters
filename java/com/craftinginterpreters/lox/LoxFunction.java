@@ -5,12 +5,23 @@ import java.util.List;
 class LoxFunction implements LoxCallable {
   private final Stmt.Function declaration;
   private final Environment closure;
+  private final boolean isInitializer;
 
   // NOTE: 10.6. closure対応で引数拡張
   // LoxFunction(Stmt.Function declaration) {
-  LoxFunction(Stmt.Function declaration, Environment closure) {
+  LoxFunction(Stmt.Function declaration, Environment closure, boolean isInitializer) {
+    this.isInitializer = isInitializer;
     this.closure = closure;
     this.declaration = declaration;
+  }
+
+  LoxFunction bind(LoxInstance instance) {
+    Environment environment = new Environment(closure);
+    environment.define("this", instance);
+
+    return new LoxFunction(declaration, environment, isInitializer);
+    // NOTE: 12.7.1で置換
+    // return new LoxFunction(declaration, environment);
   }
 
   @Override
@@ -35,8 +46,12 @@ class LoxFunction implements LoxCallable {
     try {
       interpreter.executeBlock(declaration.body, environment);
     } catch (Return returnValue) {
+      if (isInitializer) return closure.getAt(0, "this");
+
       return returnValue.value; // 早期リターンの場合、コールスタックでバケツリレーする必要がるためtry catchで帯域脱出する
     }
+
+    if (isInitializer) return closure.getAt(0, "this");
 
     // NOTE: 10.5で置換
     // interpreter.executeBlock(declaration.body, environment);

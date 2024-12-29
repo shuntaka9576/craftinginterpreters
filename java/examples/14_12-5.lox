@@ -1,0 +1,42 @@
+var m = object.method;
+m(argument);
+
+// --
+fun noMethod(argument) {
+  print "called function with " + argument;
+}
+
+var box = Box();
+box.function = noMethod;
+box.function("argument");
+
+// --
+
+class Person {
+  sayName() {
+    print this.name;
+  }
+}
+
+var jane = Person();
+jane.name = "Jane";
+
+var method = jane.sayName;
+method()
+
+// --
+
+class Person {
+  sayName() {
+    print this.name;
+  }
+}
+
+var jane = Persion();
+jane.name = "jane";
+
+var bill = Persion();
+bill.name = "Bill";
+
+bill.sayName = jane.sayName;
+bill.sayName();

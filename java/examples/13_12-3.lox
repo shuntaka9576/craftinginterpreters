@@ -1,0 +1,4 @@
+class Bagle {}
+var bagle = Bagle();
+
+print bagle;

@@ -46,6 +46,26 @@ class AstPrinter implements Expr.Visitor<String> {
     return ""; // TODO: TokenをprettiyPrintする
   }
 
+  @Override
+  public String visitGetExpr(Expr.Get expr) {
+    return ""; // TODO: TokenをprettiyPrintする
+  }
+
+  @Override
+  public String visitSetExpr(Expr.Set expr) {
+    return ""; // TODO: TokenをprettiyPrintする
+  }
+
+  @Override
+  public String visitThisExpr(Expr.This expr) {
+    return ""; // TODO: TokenをprettiyPrintする
+  }
+
+  @Override
+  public String visitSuperExpr(Expr.Super expr) {
+    return ""; // TODO: TokenをprettiyPrintする
+  }
+
   private String parenthesize(String name, Expr... exprs) {
     StringBuilder builder = new StringBuilder();
 
